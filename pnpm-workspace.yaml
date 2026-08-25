@@ -6,6 +6,7 @@ packages:
 
 onlyBuiltDependencies:
   - '@embedded-postgres/windows-x64'
+  - '@swc/core'
   - '@prisma/client'
   - '@prisma/engines'
   - 'esbuild'
