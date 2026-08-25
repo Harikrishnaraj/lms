@@ -1,8 +1,8 @@
 {
-  "extends": "@lms/tsconfig/nestjs.json",
+  "extends": "@lms/tsconfig/library.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "baseUrl": "."
+    "rootDir": "./src"
   },
   "include": ["src/**/*"]
 }

@@ -2,22 +2,30 @@
   "name": "lms-monorepo",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.34.3",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
-    "dev": "concurrently -n \"api,web\" -c \"blue,green\" \"corepack pnpm --filter api dev\" \"corepack pnpm --filter figma-make-app dev\"",
-    "build": "corepack pnpm -r build",
-    "db:generate": "corepack pnpm --filter db db:generate",
-    "db:push": "corepack pnpm --filter db db:push",
-    "db:seed": "corepack pnpm --filter db db:seed"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,json,md,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,json,md,css}\"",
+    "clean": "turbo clean",
+    "db:generate": "pnpm --filter @lms/database generate",
+    "db:push": "pnpm --filter @lms/database push",
+    "db:migrate": "pnpm --filter @lms/database migrate:dev",
+    "db:seed": "pnpm --filter @lms/database seed",
+    "db:studio": "pnpm --filter @lms/database studio"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "esbuild",
-      "prisma"
-    ]
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.3.0",
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.0.0"
   }
 }
