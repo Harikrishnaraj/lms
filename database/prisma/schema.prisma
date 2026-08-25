@@ -23,5 +23,79 @@ model Organization {
   createdAt DateTime           @default(now()) @map("created_at")
   updatedAt DateTime           @updatedAt @map("updated_at")
 
+  memberships Membership[]
+
   @@map("organizations")
+}
+
+/// The 5 fixed platform roles (TRD §10.2). Not tenant-customizable in this
+/// phase — one global row per key, shared across all organizations.
+enum RoleKey {
+  LEARNER
+  TRAINER
+  MANAGER
+  HR_LD_ADMIN
+  ORGANIZATION_ADMIN
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  key         RoleKey  @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  rolePermissions RolePermission[]
+  memberships     Membership[]
+
+  @@map("roles")
+}
+
+/// A discrete, granular permission string (e.g. "course:publish"), per TRD
+/// §10.2. Permissions are global, not tenant-owned — what varies per tenant is
+/// which users hold which role (see Membership).
+model Permission {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// User-role assignment, scoped to a single organization. `userId` is the
+/// identity provider's subject (JWT `sub`) — there is no local User/profile
+/// table yet, so this is the minimal join needed for authorization: "this
+/// externally-authenticated subject holds this role in this organization."
+/// The first real tenant-owned table beyond Organization itself, and the
+/// proving ground for the tenant-isolation pattern documented in
+/// apps/api/src/tenancy/README.md.
+model Membership {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  roleId         String   @map("role_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, roleId])
+  @@map("memberships")
 }

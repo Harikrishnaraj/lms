@@ -1,3 +1,10 @@
 export { prisma, checkDatabaseConnection } from './client';
-export { PrismaClient, Prisma } from '@prisma/client';
-export type { Organization, OrganizationStatus } from '@prisma/client';
+export { PrismaClient, Prisma, RoleKey } from '@prisma/client';
+export type {
+  Organization,
+  OrganizationStatus,
+  Role,
+  Permission,
+  RolePermission,
+  Membership,
+} from '@prisma/client';
