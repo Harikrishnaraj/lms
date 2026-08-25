@@ -1,0 +1,21 @@
+{
+  "name": "@lms/db",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.4.0",
+    "bcryptjs": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "prisma": "^6.4.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
