@@ -6,3 +6,22 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+/// Tenant root. Every tenant-owned table added in later phases carries
+/// organizationId as a discriminator column scoped to this entity.
+model Organization {
+  id        String             @id @default(uuid())
+  name      String
+  slug      String             @unique
+  status    OrganizationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  @@map("organizations")
+}

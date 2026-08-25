@@ -8,7 +8,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@lms/database": "workspace:*",
     "@lms/tsconfig": "workspace:*",
+    "embedded-postgres": "16.14.0-beta.17",
     "vitest": "^3.0.0",
     "typescript": "^5.7.0"
   }

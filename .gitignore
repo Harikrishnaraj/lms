@@ -34,3 +34,4 @@ pnpm-debug.log*
 # Database
 *.db
 *.db-journal
+tests/.tmp/
