@@ -54,6 +54,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, loading = false, disabled, children, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
 
+    // Radix Slot (asChild) requires exactly one React element child.
+    // Always rendering `{loading && <Loader2 />}{children}` gives it two
+    // children even when the loader is falsy — asChild must therefore
+    // never inject the loader itself.
     return (
       <Comp
         ref={ref}
@@ -62,8 +66,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         aria-busy={loading || undefined}
         {...props}
       >
-        {loading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-        {children}
+        {asChild ? (
+          children
+        ) : (
+          <>
+            {loading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+            {children}
+          </>
+        )}
       </Comp>
     );
   },

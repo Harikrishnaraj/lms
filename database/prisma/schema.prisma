@@ -24,6 +24,8 @@ model Organization {
   updatedAt DateTime           @updatedAt @map("updated_at")
 
   memberships Membership[]
+  users       User[]
+  departments Department[]
 
   @@map("organizations")
 }
@@ -78,12 +80,10 @@ model RolePermission {
 }
 
 /// User-role assignment, scoped to a single organization. `userId` is the
-/// identity provider's subject (JWT `sub`) — there is no local User/profile
-/// table yet, so this is the minimal join needed for authorization: "this
-/// externally-authenticated subject holds this role in this organization."
-/// The first real tenant-owned table beyond Organization itself, and the
-/// proving ground for the tenant-isolation pattern documented in
-/// apps/api/src/tenancy/README.md.
+/// identity provider's subject (JWT `sub`) — deliberately not a foreign key
+/// to `users`, since a user can hold a Membership before the local `User`
+/// profile has been created (e.g. auto-provisioned on first login). See
+/// apps/api/src/tenancy/README.md for the isolation pattern this follows.
 model Membership {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
@@ -98,4 +98,59 @@ model Membership {
   @@unique([organizationId, userId])
   @@index([organizationId, roleId])
   @@map("memberships")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+}
+
+/// Local profile for someone who exists in this organization. The identity
+/// provider (Auth0) is still the source of truth for credentials — this row
+/// stores organization-specific profile data (name, department, job title)
+/// and the join key `externalId` (the IdP `sub` claim). `externalId` is
+/// nullable so an admin can invite a user before their first Auth0 login;
+/// once they log in for the first time, a webhook / provisioning step fills
+/// it in and the row transitions from INVITED to ACTIVE.
+model User {
+  id             String     @id @default(uuid())
+  organizationId String     @map("organization_id")
+  /// Auth0 `sub` claim once the user has signed in at least once.
+  externalId     String?    @map("external_id")
+  email          String
+  firstName      String     @map("first_name")
+  lastName       String     @map("last_name")
+  jobTitle       String?    @map("job_title")
+  departmentId   String?    @map("department_id")
+  status         UserStatus @default(ACTIVE)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, email])
+  @@index([organizationId, status])
+  @@index([organizationId, departmentId])
+  @@index([organizationId, externalId])
+  @@map("users")
+}
+
+/// A grouping of users within one organization (e.g. Engineering, Sales).
+/// Used for filters and, in a later phase, department-scoped auto-enrollment
+/// rules. Names are unique per organization but names may collide across
+/// organizations — enforced by the composite unique index.
+model Department {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        User[]
+
+  @@unique([organizationId, name])
+  @@map("departments")
 }

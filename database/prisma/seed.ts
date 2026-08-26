@@ -111,6 +111,38 @@ async function main() {
     },
   });
   console.log(`Seeded membership: auth0|demo-admin as Organization Administrator (${demoMembership.id})`);
+
+  const departments = [
+    { name: 'Engineering' },
+    { name: 'People Ops' },
+    { name: 'Sales' },
+  ];
+  const departmentsByName = new Map<string, { id: string }>();
+  for (const department of departments) {
+    const row = await prisma.department.upsert({
+      where: { organizationId_name: { organizationId: organization.id, name: department.name } },
+      update: {},
+      create: { organizationId: organization.id, name: department.name },
+    });
+    departmentsByName.set(row.name, row);
+  }
+  console.log(`Seeded ${departmentsByName.size} departments`);
+
+  await prisma.user.upsert({
+    where: { organizationId_email: { organizationId: organization.id, email: 'alex.johnson@demo-org.example' } },
+    update: {},
+    create: {
+      organizationId: organization.id,
+      externalId: 'auth0|demo-admin',
+      email: 'alex.johnson@demo-org.example',
+      firstName: 'Alex',
+      lastName: 'Johnson',
+      jobTitle: 'Head of People',
+      departmentId: departmentsByName.get('People Ops')!.id,
+      status: 'ACTIVE',
+    },
+  });
+  console.log('Seeded user: alex.johnson@demo-org.example (linked to auth0|demo-admin)');
 }
 
 main()

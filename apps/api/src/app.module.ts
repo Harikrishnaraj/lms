@@ -5,10 +5,12 @@ import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { AuthorizationModule } from './authorization/authorization.module';
 import { DatabaseModule } from './database/database.module';
+import { DepartmentsModule } from './departments/departments.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RedisModule } from './redis/redis.module';
 import { TenancyModule } from './tenancy/tenancy.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { TenancyModule } from './tenancy/tenancy.module';
     TenancyModule,
     OrganizationsModule,
     MembershipsModule,
+    UsersModule,
+    DepartmentsModule,
   ],
   controllers: [AppController],
 })
