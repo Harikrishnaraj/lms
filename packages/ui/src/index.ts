@@ -58,6 +58,22 @@ export {
   DrawerDescription,
   DrawerFooter,
 } from './components/Drawer';
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuGroup,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuRadioGroup,
+} from './components/DropdownMenu';
 export { Breadcrumbs, type BreadcrumbItem, type BreadcrumbsProps } from './components/Breadcrumbs';
 export { Pagination, type PaginationProps } from './components/Pagination';
 export { ProgressBar, type ProgressBarProps } from './components/Progress';
