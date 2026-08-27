@@ -26,6 +26,8 @@ model Organization {
   memberships Membership[]
   users       User[]
   departments Department[]
+  courses     Course[]
+  categories  Category[]
 
   @@map("organizations")
 }
@@ -127,8 +129,10 @@ model User {
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department         Department?  @relation("DepartmentMember", fields: [departmentId], references: [id], onDelete: SetNull)
+  managedDepartments Department[] @relation("DepartmentManager")
+  coursesTaught      Course[]     @relation("CourseInstructor")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -137,20 +141,87 @@ model User {
   @@map("users")
 }
 
+enum DepartmentStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 /// A grouping of users within one organization (e.g. Engineering, Sales).
 /// Used for filters and, in a later phase, department-scoped auto-enrollment
 /// rules. Names are unique per organization but names may collide across
 /// organizations — enforced by the composite unique index.
 model Department {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  name           String
+  status         DepartmentStatus @default(ACTIVE)
+  managerId      String?          @map("manager_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  manager      User?        @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  users        User[]       @relation("DepartmentMember")
+
+  @@unique([organizationId, name])
+  @@map("departments")
+}
+
+/// A tag used for catalog filtering (Task 13). Created on the fly when a
+/// course names a category that doesn't exist yet in this organization —
+/// there is no separate category-management screen in this phase.
+model Category {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
   name           String
   createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  users        User[]
+  courses      Course[]     @relation("CourseCategories")
 
   @@unique([organizationId, name])
-  @@map("departments")
+  @@map("categories")
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+/// PUBLIC courses appear in the learner catalog (Task 13) once PUBLISHED;
+/// PRIVATE courses are only reachable via direct assignment/enrollment.
+enum CourseVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+/// Course metadata only — modules/lessons/content are Task 12.
+model Course {
+  id                 String            @id @default(uuid())
+  organizationId     String            @map("organization_id")
+  title              String
+  description        String?
+  status             CourseStatus      @default(DRAFT)
+  difficulty         CourseDifficulty?
+  durationMinutes    Int?              @map("duration_minutes")
+  learningObjectives String[]          @default([]) @map("learning_objectives")
+  visibility         CourseVisibility  @default(PRIVATE)
+  instructorId       String?           @map("instructor_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  instructor   User?        @relation("CourseInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
+  categories   Category[]   @relation("CourseCategories")
+
+  @@index([organizationId, status])
+  @@index([organizationId, instructorId])
+  @@map("courses")
 }

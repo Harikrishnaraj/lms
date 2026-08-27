@@ -116,6 +116,7 @@ const ADMIN_HR_CONFIG: PortalConfig = {
         { label: 'Overview', href: '/admin/hr', icon: LayoutDashboard },
         { label: 'Users', href: '/admin/hr/users', icon: Users },
         { label: 'Departments', href: '/admin/hr/departments', icon: Building2 },
+        { label: 'Courses', href: '/admin/hr/courses', icon: BookOpen },
         { label: 'Assignments', href: '/admin/hr/assignments', icon: ClipboardList },
         { label: 'Compliance', href: '/admin/hr/compliance', icon: ShieldCheck },
         { label: 'Analytics', href: '/admin/hr/analytics', icon: BarChart3 },

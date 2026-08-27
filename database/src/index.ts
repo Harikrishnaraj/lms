@@ -1,5 +1,14 @@
 export { prisma, checkDatabaseConnection } from './client';
-export { PrismaClient, Prisma, RoleKey, UserStatus } from '@prisma/client';
+export {
+  PrismaClient,
+  Prisma,
+  RoleKey,
+  UserStatus,
+  DepartmentStatus,
+  CourseStatus,
+  CourseDifficulty,
+  CourseVisibility,
+} from '@prisma/client';
 export type {
   Organization,
   OrganizationStatus,
@@ -9,4 +18,6 @@ export type {
   Membership,
   User,
   Department,
+  Course,
+  Category,
 } from '@prisma/client';
