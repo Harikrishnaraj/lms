@@ -44,7 +44,9 @@ function seedFixtures() {
     { id: 'm-a2', organizationId: ORG_A, userId: 'auth0|a-learner', roleId: 'role-learner' },
   ];
   const categories: any[] = [];
-  return { courses, users, memberships, categories };
+  const modules = [{ id: 'module-a1', organizationId: ORG_A, courseId: COURSE_A }];
+  const contentItems = [{ id: 'content-a1', organizationId: ORG_A, moduleId: 'module-a1', status: 'ACTIVE' }];
+  return { courses, users, memberships, categories, modules, contentItems };
 }
 
 function createFakePrisma() {
@@ -53,7 +55,7 @@ function createFakePrisma() {
     { id: 'role-trainer', key: RoleKey.TRAINER, permissions: ['course:create', 'course:read', 'course:update', 'course:publish'] },
   ];
   const rolesById = new Map(roles.map((r) => [r.id, r]));
-  const { courses, users, memberships, categories } = seedFixtures();
+  const { courses, users, memberships, categories, modules, contentItems } = seedFixtures();
 
   function withRelations(c: any) {
     const instructor = c.instructorId ? users.find((u) => u.id === c.instructorId) ?? null : null;
@@ -118,6 +120,14 @@ function createFakePrisma() {
     },
     category: {
       findMany: async ({ where }: any) => categories.filter((c) => c.organizationId === where.organizationId),
+    },
+    contentItem: {
+      count: async ({ where }: any) => {
+        const courseModuleIds = new Set(modules.filter((m) => m.courseId === where.module.courseId).map((m) => m.id));
+        return contentItems.filter(
+          (c) => c.organizationId === where.organizationId && c.status === where.status && courseModuleIds.has(c.moduleId),
+        ).length;
+      },
     },
   };
 
@@ -290,6 +300,17 @@ describe('Courses API (security-critical)', () => {
       .send({ status: 'ARCHIVED' });
     expect(archive.status).toBe(200);
     expect(archive.body.status).toBe('ARCHIVED');
+  });
+
+  it('rejects publishing a course with no active content', async () => {
+    const token = await tokenFor('auth0|a-trainer');
+    const create = await request(app.getHttpServer())
+      .post('/organizations/me/courses').set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Empty course' });
+    const res = await request(app.getHttpServer())
+      .patch(`/organizations/me/courses/${create.body.id}/status`).set('Authorization', `Bearer ${token}`)
+      .send({ status: 'PUBLISHED' });
+    expect(res.status).toBe(400);
   });
 
   it('filters the list by status', async () => {

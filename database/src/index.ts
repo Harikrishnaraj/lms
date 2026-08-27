@@ -8,6 +8,8 @@ export {
   CourseStatus,
   CourseDifficulty,
   CourseVisibility,
+  ContentType,
+  ContentItemStatus,
 } from '@prisma/client';
 export type {
   Organization,
@@ -20,4 +22,6 @@ export type {
   Department,
   Course,
   Category,
+  Module,
+  ContentItem,
 } from '@prisma/client';

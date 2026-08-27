@@ -108,7 +108,27 @@ export class CoursesService {
 
   async setStatus(organizationId: string, id: string, status: CourseStatus): Promise<CourseWithRelations> {
     await this.getById(organizationId, id);
+    if (status === 'PUBLISHED') {
+      await this.assertPublishable(organizationId, id);
+    }
     return this.prisma.course.update({ where: { id }, data: { status }, include: INCLUDE });
+  }
+
+  /**
+   * Publish validation (Task 12): a course needs at least one module, and at
+   * least one ACTIVE content item somewhere in it. This is deliberately a
+   * low bar — it catches "published nothing," not "every module is
+   * complete" — a course can keep growing content after publish.
+   */
+  private async assertPublishable(organizationId: string, courseId: string): Promise<void> {
+    const activeContentCount = await this.prisma.contentItem.count({
+      where: { organizationId, status: 'ACTIVE', module: { courseId } },
+    });
+    if (activeContentCount === 0) {
+      throw new BadRequestException(
+        'A course needs at least one module with at least one active content item before it can be published',
+      );
+    }
   }
 
   async listCategories(organizationId: string): Promise<Category[]> {

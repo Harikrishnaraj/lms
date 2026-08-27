@@ -23,11 +23,13 @@ model Organization {
   createdAt DateTime           @default(now()) @map("created_at")
   updatedAt DateTime           @updatedAt @map("updated_at")
 
-  memberships Membership[]
-  users       User[]
-  departments Department[]
-  courses     Course[]
-  categories  Category[]
+  memberships  Membership[]
+  users        User[]
+  departments  Department[]
+  courses      Course[]
+  categories   Category[]
+  modules      Module[]
+  contentItems ContentItem[]
 
   @@map("organizations")
 }
@@ -220,8 +222,65 @@ model Course {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   instructor   User?        @relation("CourseInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
   categories   Category[]   @relation("CourseCategories")
+  modules      Module[]
 
   @@index([organizationId, status])
   @@index([organizationId, instructorId])
   @@map("courses")
+}
+
+/// A section within a course. Ordered by `position` (0-based, dense —
+/// reordering rewrites every affected row's position rather than using
+/// fractional/gap-based ordering, which is simpler and plenty fast at the
+/// module/content-item counts a single course has).
+model Module {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  courseId       String   @map("course_id")
+  title          String
+  position       Int
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  contentItems ContentItem[]
+
+  @@index([organizationId, courseId, position])
+  @@map("modules")
+}
+
+enum ContentType {
+  VIDEO
+  DOCUMENT
+  TEXT
+  RESOURCE
+}
+
+enum ContentItemStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+/// A single piece of learning content within a module. VIDEO/DOCUMENT/
+/// RESOURCE reference an object-storage key (never a raw vendor URL — see
+/// apps/api/src/storage/README.md); TEXT stores its body inline.
+model ContentItem {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  moduleId       String            @map("module_id")
+  title          String
+  type           ContentType
+  position       Int
+  status         ContentItemStatus @default(ACTIVE)
+  storageKey     String?           @map("storage_key")
+  textBody       String?           @map("text_body")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  module       Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, moduleId, position])
+  @@map("content_items")
 }

@@ -27,10 +27,30 @@ export const envSchema = z.object({
 
   REFRESH_SESSION_COOKIE_NAME: z.string().default('lms_sid'),
   REFRESH_SESSION_TTL_SECONDS: z.coerce.number().default(7 * 24 * 60 * 60),
+
+  // Object storage for uploaded course content (Task 12). 'local' writes to
+  // disk through this API's own endpoints — fine for dev, never for
+  // production. 'S3' targets any S3-compatible endpoint (AWS S3, MinIO,
+  // Cloudflare R2, ...) via presigned URLs; see apps/api/src/storage/README.md.
+  STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
+  STORAGE_LOCAL_DIR: z.string().default('./.data/uploads'),
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
 
 export function validateEnv(config: Record<string, unknown> = process.env): Env {
-  return envSchema.parse(config);
+  const env = envSchema.parse(config);
+  if (env.STORAGE_PROVIDER === 's3') {
+    const required = ['S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
+    const missing = required.filter((key) => !env[key]);
+    if (missing.length > 0) {
+      throw new Error(`STORAGE_PROVIDER=s3 requires ${missing.join(', ')}`);
+    }
+  }
+  return env;
 }

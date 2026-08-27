@@ -16,6 +16,7 @@ import {
   ErrorState,
   FullPageLoader,
 } from '@lms/ui';
+import { CourseBuilder } from './CourseBuilder';
 import { CourseForm } from './CourseForm';
 import {
   getCourse,
@@ -152,6 +153,8 @@ export function CourseDetail({ backHref, backLabel }: { backHref: string; backLa
           />
         </CardContent>
       </Card>
+
+      <CourseBuilder courseId={course.id} />
     </div>
   );
 }

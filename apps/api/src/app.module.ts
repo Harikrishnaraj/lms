@@ -4,6 +4,8 @@ import { validateEnv } from '@lms/config';
 import { AppController } from './app.controller';
 import { AuthModule } from './auth/auth.module';
 import { AuthorizationModule } from './authorization/authorization.module';
+import { ContentItemsModule } from './content-items/content-items.module';
+import { CourseModulesModule } from './course-modules/course-modules.module';
 import { CoursesModule } from './courses/courses.module';
 import { DatabaseModule } from './database/database.module';
 import { DepartmentsModule } from './departments/departments.module';
@@ -30,6 +32,8 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     DepartmentsModule,
     CoursesModule,
+    CourseModulesModule,
+    ContentItemsModule,
   ],
   controllers: [AppController],
 })
