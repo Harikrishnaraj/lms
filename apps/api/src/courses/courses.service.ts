@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import type { Category, Course, CourseStatus, Prisma, PrismaClient, User } from '@lms/database';
 import { PRISMA_CLIENT } from '../database/database.constants';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { ListCatalogQueryDto } from './dto/list-catalog.dto';
 import { ListCoursesQueryDto } from './dto/list-courses.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 
@@ -15,6 +16,23 @@ export interface CourseWithRelations extends Course {
 
 export interface PaginatedCourses {
   items: CourseWithRelations[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+/** Learner-facing enrollment status merged onto a catalog course (Task 13). */
+export type CatalogEnrollmentStatus = 'NOT_ENROLLED' | 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface CatalogCourse extends CourseWithRelations {
+  enrollmentId: string | null;
+  enrollmentStatus: CatalogEnrollmentStatus;
+  isMandatory: boolean;
+  dueDate: Date | null;
+}
+
+export interface PaginatedCatalogCourses {
+  items: CatalogCourse[];
   page: number;
   pageSize: number;
   total: number;
@@ -129,6 +147,88 @@ export class CoursesService {
         'A course needs at least one module with at least one active content item before it can be published',
       );
     }
+  }
+
+  /**
+   * Learner catalog (Task 13): PUBLIC + PUBLISHED courses only — everything
+   * else (DRAFT/ARCHIVED, or PRIVATE regardless of status) is reachable
+   * only via direct assignment/enrollment, never catalog browsing.
+   */
+  async listCatalog(
+    organizationId: string,
+    learnerId: string | null,
+    query: ListCatalogQueryDto,
+  ): Promise<PaginatedCatalogCourses> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 24;
+
+    const durationFilter: Prisma.IntFilter | undefined =
+      query.minDurationMinutes !== undefined || query.maxDurationMinutes !== undefined
+        ? {
+            ...(query.minDurationMinutes !== undefined ? { gte: query.minDurationMinutes } : {}),
+            ...(query.maxDurationMinutes !== undefined ? { lte: query.maxDurationMinutes } : {}),
+          }
+        : undefined;
+
+    const where: Prisma.CourseWhereInput = {
+      organizationId,
+      status: 'PUBLISHED',
+      visibility: 'PUBLIC',
+      ...(query.search ? { title: { contains: query.search, mode: 'insensitive' } } : {}),
+      ...(query.category ? { categories: { some: { name: query.category } } } : {}),
+      ...(query.difficulty ? { difficulty: query.difficulty } : {}),
+      ...(durationFilter ? { durationMinutes: durationFilter } : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.course.findMany({
+        where,
+        include: INCLUDE,
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.course.count({ where }),
+    ]);
+
+    return { items: await this.attachEnrollmentStatus(organizationId, learnerId, items), page, pageSize, total };
+  }
+
+  async getCatalogById(organizationId: string, learnerId: string | null, id: string): Promise<CatalogCourse> {
+    const course = await this.prisma.course.findFirst({
+      where: { id, organizationId, status: 'PUBLISHED', visibility: 'PUBLIC' },
+      include: INCLUDE,
+    });
+    if (!course) throw new NotFoundException('Course not found');
+    const [withStatus] = await this.attachEnrollmentStatus(organizationId, learnerId, [course]);
+    return withStatus;
+  }
+
+  /** learnerId is the caller's local User.id, or null if they have no provisioned profile yet (browsing still works — everything just reads as NOT_ENROLLED). */
+  private async attachEnrollmentStatus(
+    organizationId: string,
+    learnerId: string | null,
+    courses: CourseWithRelations[],
+  ): Promise<CatalogCourse[]> {
+    if (!learnerId || courses.length === 0) {
+      return courses.map((c) => ({ ...c, enrollmentId: null, enrollmentStatus: 'NOT_ENROLLED' as const, isMandatory: false, dueDate: null }));
+    }
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { organizationId, userId: learnerId, courseId: { in: courses.map((c) => c.id) } },
+    });
+    const byCourseId = new Map(enrollments.map((e) => [e.courseId, e]));
+
+    return courses.map((c) => {
+      const enrollment = byCourseId.get(c.id);
+      return {
+        ...c,
+        enrollmentId: enrollment?.id ?? null,
+        enrollmentStatus: enrollment ? enrollment.status : ('NOT_ENROLLED' as const),
+        isMandatory: enrollment?.isMandatory ?? false,
+        dueDate: enrollment?.dueDate ?? null,
+      };
+    });
   }
 
   async listCategories(organizationId: string): Promise<Category[]> {

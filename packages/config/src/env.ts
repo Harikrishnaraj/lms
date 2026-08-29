@@ -25,8 +25,22 @@ export const envSchema = z.object({
   AUTH_JWKS_URI: z.string().url().optional(),
   AUTH_ISSUER: z.string().url().optional(),
 
+  // Local-only "sign in as a seeded demo user" side door (apps/api/src/auth/dev/),
+  // for manually exercising the app without a live Auth0 tenant. Never valid
+  // when NODE_ENV=production — see the guard in validateEnv below.
+  DEV_AUTH_BYPASS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   REFRESH_SESSION_COOKIE_NAME: z.string().default('lms_sid'),
   REFRESH_SESSION_TTL_SECONDS: z.coerce.number().default(7 * 24 * 60 * 60),
+
+  // Comma-separated list of origins allowed to make credentialed (cookie-
+  // carrying) requests — the Next.js dev server by default. Needed for the
+  // session cookie set by POST /auth/login to survive a cross-origin fetch
+  // from apps/web (see apps/web/src/lib/api-client.ts).
+  CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
   // Object storage for uploaded course content (Task 12). 'local' writes to
   // disk through this API's own endpoints — fine for dev, never for
@@ -45,6 +59,9 @@ export type Env = z.infer<typeof envSchema>;
 
 export function validateEnv(config: Record<string, unknown> = process.env): Env {
   const env = envSchema.parse(config);
+  if (env.DEV_AUTH_BYPASS && env.NODE_ENV === 'production') {
+    throw new Error('DEV_AUTH_BYPASS must not be enabled when NODE_ENV=production');
+  }
   if (env.STORAGE_PROVIDER === 's3') {
     const required = ['S3_BUCKET', 'S3_REGION', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
     const missing = required.filter((key) => !env[key]);

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ContentType } from '@lms/database';
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
+import { IsEnum, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
 
 const STORAGE_BACKED_TYPES: ContentType[] = [ContentType.VIDEO, ContentType.DOCUMENT, ContentType.RESOURCE];
 

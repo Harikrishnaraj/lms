@@ -99,3 +99,28 @@ point at a short-lived, local JWKS server signing tokens with a throwaway RSA
 keypair — this exercises the real signature/issuer/audience/expiry verification
 path without any network dependency on Auth0. See
 `src/auth/__tests__/jwt-auth.e2e.test.ts`.
+
+## Local dev without Auth0
+
+Setting up a real Auth0 tenant (application, database connection, the
+post-login Action above) is a real prerequisite before this app's actual
+login flow works end to end. For manually clicking through the app before
+that's done, `apps/api/src/auth/dev/` provides a side door: it generates an
+in-memory RSA keypair, serves it as a real JWKS document, and mints real
+RS256 access tokens for any seeded user on request — `JwtStrategy` verifies
+these exactly like a genuine Auth0 token, no code path is skipped.
+
+To turn it on, uncomment the three `DEV_AUTH_BYPASS` / `AUTH_JWKS_URI` /
+`AUTH_ISSUER` lines in your `.env` (see `infrastructure/.env.example`),
+start the app, and open `http://localhost:3000/dev-login` — it lists every
+seeded user and signs you in as whichever one you pick, no password, no
+Auth0 account. Every `DevAuthController`/`DevAuthService` method throws a
+404 unless `DEV_AUTH_BYPASS=true`, and `validateEnv` refuses to boot at all
+if that flag is set alongside `NODE_ENV=production` — this cannot
+accidentally end up reachable in a deployed environment.
+
+This does not exercise `AuthService`, Redis sessions, or the refresh-token
+flow — the dev-login page takes the returned access token and calls
+`setAccessToken()` directly. It is a way to see the rest of the app work
+against a real API and a real database, not a substitute for testing the
+actual login flow, which still needs a real Auth0 tenant.

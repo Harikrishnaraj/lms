@@ -18,7 +18,8 @@ async function bootstrap() {
     }),
   );
 
-  app.enableCors();
+  const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000').split(',').map((o) => o.trim());
+  app.enableCors({ origin: corsOrigins, credentials: true });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('LMS API')

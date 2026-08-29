@@ -30,6 +30,19 @@ model Organization {
   categories   Category[]
   modules      Module[]
   contentItems ContentItem[]
+  enrollments  Enrollment[]
+  contentProgress ContentProgress[]
+  learningPaths LearningPath[]
+  learningPathCourses LearningPathCourse[]
+  learningPathEnrollments LearningPathEnrollment[]
+  assignments   Assignment[]
+  assessments       Assessment[]
+  questions         Question[]
+  assessmentAttempts AssessmentAttempt[]
+  certificates      Certificate[]
+  notifications     Notification[]
+  notificationPreferences NotificationPreference[]
+  auditLogs         AuditLog[]
 
   @@map("organizations")
 }
@@ -135,6 +148,18 @@ model User {
   department         Department?  @relation("DepartmentMember", fields: [departmentId], references: [id], onDelete: SetNull)
   managedDepartments Department[] @relation("DepartmentManager")
   coursesTaught      Course[]     @relation("CourseInstructor")
+  enrollments        Enrollment[] @relation("EnrollmentLearner")
+  assignedEnrollments Enrollment[] @relation("EnrollmentAssignedBy")
+  createdLearningPaths LearningPath[] @relation("LearningPathCreatedBy")
+  learningPathEnrollments LearningPathEnrollment[] @relation("LearningPathEnrollmentLearner")
+  assignedLearningPathEnrollments LearningPathEnrollment[] @relation("LearningPathEnrollmentAssignedBy")
+  assignmentsCreated Assignment[] @relation("AssignmentCreatedBy")
+  assignmentsReceived Assignment[] @relation("AssignmentUser")
+  assessmentAttempts  AssessmentAttempt[]
+  certificates        Certificate[]
+  notifications       Notification[]
+  notificationPreferences NotificationPreference[]
+  auditLogs           AuditLog[]
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -164,6 +189,7 @@ model Department {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   manager      User?        @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
   users        User[]       @relation("DepartmentMember")
+  assignments  Assignment[]
 
   @@unique([organizationId, name])
   @@map("departments")
@@ -216,6 +242,10 @@ model Course {
   learningObjectives String[]          @default([]) @map("learning_objectives")
   visibility         CourseVisibility  @default(PRIVATE)
   instructorId       String?           @map("instructor_id")
+  /// Days a certificate issued for this course stays valid. Null = the
+  /// certificate never expires, which is the default; set it for courses
+  /// with a recertification cycle (Task 20's "expiration where applicable").
+  certificateValidityDays Int?          @map("certificate_validity_days")
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
 
@@ -223,6 +253,10 @@ model Course {
   instructor   User?        @relation("CourseInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
   categories   Category[]   @relation("CourseCategories")
   modules      Module[]
+  enrollments  Enrollment[]
+  learningPathCourses LearningPathCourse[]
+  assignments  Assignment[]
+  certificates Certificate[]
 
   @@index([organizationId, status])
   @@index([organizationId, instructorId])
@@ -255,6 +289,7 @@ enum ContentType {
   DOCUMENT
   TEXT
   RESOURCE
+  QUIZ
 }
 
 enum ContentItemStatus {
@@ -278,9 +313,388 @@ model ContentItem {
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  module       Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  module       Module            @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress     ContentProgress[]
+  assessment   Assessment?
 
   @@index([organizationId, moduleId, position])
   @@map("content_items")
 }
+
+enum EnrollmentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Who created the enrollment. Drives the "Enrollment" task's three entry
+/// points: learner self-enrollment, HR/L&D admin assignment, and manager
+/// assignment (scoped to the departments they manage).
+enum EnrollmentSource {
+  SELF
+  ADMIN
+  MANAGER
+}
+
+/// A learner's relationship to one course (Task 14). `status` here is
+/// learner-progress state, not a due-date computation — "overdue" is
+/// derived at read time from `dueDate < now() && status != COMPLETED`
+/// rather than stored, since there is no background job (yet) to keep a
+/// persisted status in sync with the clock (that lands with the
+/// rule-based auto-enrollment worker in a later phase).
+model Enrollment {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  courseId       String           @map("course_id")
+  status         EnrollmentStatus @default(NOT_STARTED)
+  isMandatory    Boolean          @default(false) @map("is_mandatory")
+  source         EnrollmentSource @default(SELF)
+  /// Local User.id of the admin/manager who created this enrollment. Null
+  /// for SELF enrollments.
+  assignedById   String?          @map("assigned_by_id")
+  dueDate        DateTime?        @map("due_date")
+  startedAt      DateTime?        @map("started_at")
+  completedAt    DateTime?        @map("completed_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User              @relation("EnrollmentLearner", fields: [userId], references: [id], onDelete: Cascade)
+  course       Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignedBy   User?             @relation("EnrollmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  contentProgress ContentProgress[]
+
+  @@unique([organizationId, userId, courseId])
+  @@index([organizationId, status])
+  @@index([organizationId, userId])
+  @@index([organizationId, courseId])
+  @@map("enrollments")
+}
+
+
+enum ContentProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Per-content-item progress for one learner's enrollment (Task 15). Drives
+/// resume-where-you-left-off (`lastAccessedAt` across items, filtered to
+/// this enrollment) and completion rollup: when every ACTIVE content item
+/// in a course's modules reaches COMPLETED, the owning Enrollment is moved
+/// to COMPLETED (see PlayerService.markComplete). Scoped by enrollmentId
+/// rather than (userId, courseId) directly so a learner's history survives
+/// even if they were ever unenrolled and re-enrolled (a fresh Enrollment
+/// row gets fresh progress, by design — see enrollments/README.md).
+model ContentProgress {
+  id             String                 @id @default(uuid())
+  organizationId String                 @map("organization_id")
+  enrollmentId   String                 @map("enrollment_id")
+  contentItemId  String                 @map("content_item_id")
+  status         ContentProgressStatus  @default(NOT_STARTED)
+  completedAt    DateTime?              @map("completed_at")
+  lastAccessedAt DateTime?              @map("last_accessed_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enrollment   Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  contentItem  ContentItem  @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, contentItemId])
+  @@index([organizationId, enrollmentId])
+  @@map("content_progress")
+}
+
+enum LearningPathStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// An ordered collection of Courses (Task 16). Learner progress on a path is
+/// deliberately NOT stored as its own status field -- it's computed at read
+/// time from the member courses' Enrollment rows for that learner (see
+/// LearningPathsService.getProgress), the same "derive rather than persist
+/// a clock-dependent value" approach already used for Enrollment.dueDate
+/// overdue checks. This avoids a second progress-tracking system that could
+/// drift from the Enrollment rows that are the actual source of truth for
+/// "did this learner finish this course."
+model LearningPath {
+  id             String             @id @default(uuid())
+  organizationId String             @map("organization_id")
+  title          String
+  description    String?
+  status         LearningPathStatus @default(DRAFT)
+  createdById    String?            @map("created_by_id")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?                    @relation("LearningPathCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  courses      LearningPathCourse[]
+  enrollments  LearningPathEnrollment[]
+  assignments  Assignment[]
+
+  @@index([organizationId, status])
+  @@map("learning_paths")
+}
+
+/// One Course's membership in a LearningPath, in order. `isRequired` false
+/// means the course is optional/supplementary -- it does not gate the path's
+/// completion rollup (see LearningPathsService.getProgress) and is not
+/// auto-enrolled when a learner joins the path.
+model LearningPathCourse {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  learningPathId String   @map("learning_path_id")
+  courseId       String   @map("course_id")
+  position       Int
+  isRequired     Boolean  @default(true) @map("is_required")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([learningPathId, courseId])
+  @@index([organizationId, learningPathId, position])
+  @@map("learning_path_courses")
+}
+
+/// A learner's relationship to a LearningPath (Task 16) -- mirrors
+/// Enrollment's shape (isMandatory/source/assignedBy/dueDate) but has no
+/// status/startedAt/completedAt of its own; see the model comment on
+/// LearningPath for why. Joining a path (self or assigned) cascades an
+/// Enrollment row for every REQUIRED member course via
+/// EnrollmentsService.upsertAssignedEnrollment, so the existing Course
+/// Player / My Learning surfaces work unchanged.
+model LearningPathEnrollment {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  learningPathId String           @map("learning_path_id")
+  isMandatory    Boolean          @default(false) @map("is_mandatory")
+  source         EnrollmentSource @default(SELF)
+  assignedById   String?          @map("assigned_by_id")
+  dueDate        DateTime?        @map("due_date")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("LearningPathEnrollmentLearner", fields: [userId], references: [id], onDelete: Cascade)
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  assignedBy   User?        @relation("LearningPathEnrollmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, userId, learningPathId])
+  @@index([organizationId, learningPathId])
+  @@index([organizationId, userId])
+  @@map("learning_path_enrollments")
+}
+
+enum AssignmentTargetType {
+  COURSE
+  LEARNING_PATH
+}
+
+enum AssignmentScopeType {
+  USER
+  DEPARTMENT
+}
+
+/// An audit record of one bulk-assignment action (Task 17) -- "HR assigned
+/// Course X to Department Y, mandatory, due in 30 days." The per-recipient
+/// effect (and the thing that actually drives status/progress) is the
+/// Enrollment or LearningPathEnrollment row created for each resolved
+/// recipient -- this table does not duplicate that state, only the request
+/// that produced it. "Team" has no dedicated model in this schema yet, so
+/// DEPARTMENT scope doubles as team-assignment (see Department's own
+/// docblock on manager scoping for the same convention elsewhere).
+model Assignment {
+  id             String               @id @default(uuid())
+  organizationId String               @map("organization_id")
+  targetType     AssignmentTargetType @map("target_type")
+  courseId       String?              @map("course_id")
+  learningPathId String?              @map("learning_path_id")
+  scopeType      AssignmentScopeType  @map("scope_type")
+  userId         String?              @map("user_id")
+  departmentId   String?              @map("department_id")
+  isMandatory    Boolean              @default(false) @map("is_mandatory")
+  dueDate        DateTime?            @map("due_date")
+  createdById    String               @map("created_by_id")
+  recipientCount Int                  @map("recipient_count")
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  course       Course?       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  learningPath LearningPath? @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  targetUser   User?         @relation("AssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  department   Department?   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("AssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, courseId])
+  @@index([organizationId, learningPathId])
+  @@index([organizationId, departmentId])
+  @@map("assignments")
+}
+
+model Assessment {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  contentItemId  String?     @unique @map("content_item_id")
+  title          String
+  description    String?
+  passingScore   Int         @default(70) @map("passing_score")
+  attemptLimit   Int?        @map("attempt_limit")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contentItem    ContentItem? @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+  questions      Question[]
+  attempts       AssessmentAttempt[]
+
+  @@index([organizationId])
+  @@map("assessments")
+}
+
+model Question {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  assessmentId   String      @map("assessment_id")
+  text           String
+  options        String[]
+  correctIndex   Int         @map("correct_index")
+  points         Int         @default(1)
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assessment     Assessment   @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, assessmentId])
+  @@map("questions")
+}
+
+model AssessmentAttempt {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  userId         String      @map("user_id")
+  assessmentId   String      @map("assessment_id")
+  score          Int
+  passed         Boolean
+  answers        Json
+  startedAt      DateTime    @default(now()) @map("started_at")
+  submittedAt    DateTime    @default(now()) @map("submitted_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessment     Assessment   @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, assessmentId])
+  @@map("assessment_attempts")
+}
+
+enum CertificateStatus {
+  ACTIVE
+  REVOKED
+}
+
+model Certificate {
+  id                String            @id @default(uuid())
+  organizationId    String            @map("organization_id")
+  userId            String            @map("user_id")
+  courseId          String            @map("course_id")
+  certificateNumber String            @unique @map("certificate_number")
+  verificationToken String            @unique @map("verification_token")
+  status            CertificateStatus @default(ACTIVE)
+  issuedAt          DateTime          @default(now()) @map("issued_at")
+  expiresAt         DateTime?         @map("expires_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course            Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId])
+  @@map("certificates")
+}
+
+
+/// The events Task 25 names, plus the catch-all administrative
+/// announcement. One enum drives both the delivered notification and the
+/// per-user preference row, so a new event type can never be delivered
+/// without also being opt-out-able.
+enum NotificationType {
+  COURSE_ASSIGNED
+  ASSESSMENT_RESULT
+  COURSE_COMPLETED
+  CERTIFICATE_ISSUED
+  ANNOUNCEMENT
+}
+
+/// One in-app notification for one user. Email delivery is a *side effect*
+/// dispatched from the same queue job (see notifications/README.md), not a
+/// second row -- so "read" is a property of the in-app copy only.
+model Notification {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  type           NotificationType
+  title          String
+  body           String
+  /// In-app deep link, e.g. /learner/courses/<enrollmentId>.
+  linkUrl        String?          @map("link_url")
+  readAt         DateTime?        @map("read_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, readAt])
+  @@index([organizationId, userId, createdAt])
+  @@map("notifications")
+}
+
+/// Per-user, per-type channel opt-out. Absent row = both channels on, so a
+/// new user needs no backfill and a new NotificationType needs no
+/// migration of existing preferences.
+model NotificationPreference {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  userId         String           @map("user_id")
+  type           NotificationType
+  inApp          Boolean          @default(true) @map("in_app")
+  email          Boolean          @default(true)
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, type])
+  @@map("notification_preferences")
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  actorId        String?      @map("actor_id")
+  action         String
+  entityType     String       @map("entity_type")
+  entityId       String?      @map("entity_id")
+  metadata       Json?
+  ipAddress      String?      @map("ip_address")
+  userAgent      String?      @map("user_agent")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, action])
+  @@map("audit_logs")
+}
+

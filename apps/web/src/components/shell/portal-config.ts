@@ -5,6 +5,7 @@ import {
   Calendar,
   CheckSquare,
   ClipboardList,
+  Compass,
   FileBarChart,
   GraduationCap,
   LayoutDashboard,
@@ -15,6 +16,7 @@ import {
   UserCog,
   Users,
   UsersRound,
+  Search,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 
@@ -60,6 +62,8 @@ const LEARNER_CONFIG: PortalConfig = {
     {
       items: [
         { label: 'Dashboard', href: '/learner', icon: LayoutDashboard },
+        { label: 'Search', href: '/learner/search', icon: Search },
+        { label: 'Browse catalog', href: '/learner/catalog', icon: Compass },
         { label: 'My learning', href: '/learner/courses', icon: BookOpen },
         { label: 'Learning paths', href: '/learner/paths', icon: GraduationCap },
         { label: 'Assessments', href: '/learner/assessments', icon: ClipboardList },
@@ -81,8 +85,8 @@ const TRAINER_CONFIG: PortalConfig = {
         { label: 'Dashboard', href: '/trainer', icon: LayoutDashboard },
         { label: 'Courses', href: '/trainer/courses', icon: BookOpen },
         { label: 'Assessments', href: '/trainer/assessments', icon: ClipboardList },
-        { label: 'Learner progress', href: '/trainer/learners', icon: BarChart3 },
-        { label: 'Q&A', href: '/trainer/discussions', icon: MessagesSquare },
+        { label: 'Submissions', href: '/trainer/submissions', icon: CheckSquare },
+        { label: 'Analytics', href: '/trainer/analytics', icon: BarChart3 },
       ],
     },
   ],
@@ -98,7 +102,7 @@ const ADMIN_MANAGER_CONFIG: PortalConfig = {
       items: [
         { label: 'Overview', href: '/admin/manager', icon: LayoutDashboard },
         { label: 'My team', href: '/admin/manager/team', icon: UsersRound },
-        { label: 'Approvals', href: '/admin/manager/approvals', icon: CheckSquare },
+        { label: 'Assignments', href: '/admin/manager/assignments', icon: ClipboardList },
         { label: 'Team reports', href: '/admin/manager/reports', icon: FileBarChart },
       ],
     },
@@ -117,6 +121,7 @@ const ADMIN_HR_CONFIG: PortalConfig = {
         { label: 'Users', href: '/admin/hr/users', icon: Users },
         { label: 'Departments', href: '/admin/hr/departments', icon: Building2 },
         { label: 'Courses', href: '/admin/hr/courses', icon: BookOpen },
+        { label: 'Learning paths', href: '/admin/hr/learning-paths', icon: GraduationCap },
         { label: 'Assignments', href: '/admin/hr/assignments', icon: ClipboardList },
         { label: 'Compliance', href: '/admin/hr/compliance', icon: ShieldCheck },
         { label: 'Analytics', href: '/admin/hr/analytics', icon: BarChart3 },

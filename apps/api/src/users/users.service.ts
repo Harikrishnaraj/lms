@@ -87,6 +87,18 @@ export class UsersService {
     return enriched;
   }
 
+  /**
+   * Resolves the local profile for the caller's identity-provider subject
+   * (JWT `sub`, i.e. `AuthenticatedUser.id`). Returns null rather than
+   * throwing when no local User row exists yet — a Membership can exist
+   * before a profile is provisioned (see `User.externalId` docs on the
+   * Prisma model), and callers that require a profile (enrollment,
+   * catalog) turn a null into their own domain-appropriate error.
+   */
+  async findByExternalId(organizationId: string, externalId: string): Promise<User | null> {
+    return this.prisma.user.findFirst({ where: { organizationId, externalId } });
+  }
+
   async create(organizationId: string, dto: CreateUserDto): Promise<UserWithRelations> {
     if (dto.departmentId) {
       await this.assertDepartmentInOrg(organizationId, dto.departmentId);

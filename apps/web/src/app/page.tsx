@@ -25,9 +25,17 @@ export default function HomePage() {
           </Link>
         ))}
       </div>
-      <Link href="/style-guide" className="text-body-sm font-medium text-primary hover:underline">
-        View the design system →
-      </Link>
+      <div className="flex flex-col items-center gap-2">
+        <Link href="/login" className="text-body-sm font-medium text-primary hover:underline">
+          Sign in →
+        </Link>
+        <Link href="/style-guide" className="text-body-sm font-medium text-primary hover:underline">
+          View the design system →
+        </Link>
+        <Link href="/dev-login" className="text-body-sm font-medium text-primary hover:underline">
+          Dev sign-in (local only) →
+        </Link>
+      </div>
     </main>
   );
 }

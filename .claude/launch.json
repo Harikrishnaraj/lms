@@ -1,0 +1,27 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "pnpm@10.34.3",
+        "--filter",
+        "@lms/web",
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "pnpm@10.34.3",
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    }
+  ]
+}
