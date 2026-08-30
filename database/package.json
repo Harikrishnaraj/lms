@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.json",
+    "postinstall": "prisma generate",
     "dev": "tsc -p tsconfig.json --watch",
     "generate": "prisma generate",
     "push": "prisma db push",
