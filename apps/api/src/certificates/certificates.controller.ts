@@ -2,7 +2,7 @@ import { Controller, ForbiddenException, Get, Inject, Param, ParseUUIDPipe, Patc
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import type { Certificate, PrismaClient } from '@lms/database';
-import { AuthenticatedUser } from '../auth/authenticated-user';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Permissions } from '../authorization/decorators/permissions.decorator';
 import { PRISMA_CLIENT } from '../database/database.constants';

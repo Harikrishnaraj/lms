@@ -23,6 +23,7 @@ import { CertificatesModule } from './certificates/certificates.module';
 import { SearchModule } from './search/search.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuditModule } from './audit/audit.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { AuditModule } from './audit/audit.module';
     SearchModule,
     AnalyticsModule,
     AuditModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
 })
