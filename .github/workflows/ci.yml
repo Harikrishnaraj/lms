@@ -5,6 +5,9 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  # Lets the deployed-stack smoke test be re-run on demand without a push,
+  # e.g. after an Auth0 or Railway configuration change.
+  workflow_dispatch:
 
 # A new push to a PR cancels the previous run for that PR; master runs always
 # finish so every commit on the default branch has a real result.
@@ -59,3 +62,57 @@ jobs:
       # Needs no database, Redis, or Auth0 tenant — see apps/api/src/app.boot.spec.ts.
       - name: NestJS boot smoke test
         run: pnpm --filter @lms/api exec vitest run src/app.boot.spec.ts
+
+  # Deliberately NOT run on pull_request: this suite hits the DEPLOYED stack
+  # (Vercel + Railway), which on a PR does not contain that PR's code. A
+  # failure there would be unrelated to the change and a pass would prove
+  # nothing about it. It runs post-merge as a deployment smoke test, and on
+  # demand via workflow_dispatch. The specs themselves are still typechecked
+  # on every PR, via the `verify` job's `pnpm typecheck`.
+  e2e-deployed:
+    name: E2E access-control (deployed stack)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: verify
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter @lms/e2e exec playwright install --with-deps chromium
+
+      # Scoped to access-control.spec.ts on purpose, and not widened to the
+      # whole suite. The authenticated specs mutate real tenant state — for
+      # example org-admin.spec.ts renames the organization — so if role
+      # credentials are ever added as repository secrets, an unscoped run
+      # would start mutating live production data on every push to master.
+      # Naming the spec makes that structurally impossible rather than
+      # relying on the credentials staying absent.
+      #
+      # These assertions are deployment-independent (they check auth
+      # boundaries, not feature behaviour), so racing an in-flight
+      # Vercel/Railway deploy is tolerable here.
+      - name: Unauthenticated access-control boundary
+        run: pnpm --filter @lms/e2e exec playwright test specs/access-control.spec.ts
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
