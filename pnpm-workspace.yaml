@@ -3,6 +3,7 @@ packages:
   - 'packages/*'
   - 'database'
   - 'tests'
+  - 'e2e'
 
 onlyBuiltDependencies:
   - '@embedded-postgres/windows-x64'
