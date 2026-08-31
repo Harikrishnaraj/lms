@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Award, Download, Globe } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, EmptyState, ErrorState, FullPageLoader } from '@lms/ui';
 import { listCertificates, downloadCertificatePdf, type CertificateView } from '../../../lib/certificates-client';
@@ -77,9 +78,9 @@ export default function LearnerCertificatesPage() {
           title="No certificates earned yet"
           description="Once you complete a course and pass its final assessment, your certificate will appear here."
           action={
-            <a href="/learner/catalog">
+            <Link href="/learner/catalog">
               <Button size="sm">Explore course catalog</Button>
-            </a>
+            </Link>
           }
         />
       ) : (

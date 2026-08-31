@@ -42,7 +42,7 @@ export default function NewLearningPathPage() {
 
       <div>
         <h1 className="text-h2 text-foreground">New learning path</h1>
-        <p className="mt-1 text-body-md text-muted-foreground">Starts as a draft — add courses and publish once it's ready.</p>
+        <p className="mt-1 text-body-md text-muted-foreground">Starts as a draft — add courses and publish once it&apos;s ready.</p>
       </div>
 
       <Card>

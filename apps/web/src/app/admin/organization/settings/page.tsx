@@ -49,7 +49,7 @@ export default function OrganizationSettingsPage() {
       <header>
         <h1 className="text-h2 text-foreground">Organization Settings</h1>
         <p className="mt-1 text-body-md text-muted-foreground">
-          Update your organization's general information and branding.
+          Update your organization&apos;s general information and branding.
         </p>
       </header>
 

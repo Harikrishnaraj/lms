@@ -68,7 +68,7 @@ export default function AdminManagerPage() {
       <header>
         <h1 className="text-h2 text-foreground">Manager Dashboard</h1>
         <p className="mt-1 text-body-md text-muted-foreground">
-          Monitor your team's learning progress and manage assignments.
+          Monitor your team&apos;s learning progress and manage assignments.
         </p>
       </header>
 

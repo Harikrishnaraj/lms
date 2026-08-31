@@ -185,7 +185,6 @@ export default function CoursePlayerPage() {
                   <p className="whitespace-pre-wrap text-body-md text-foreground">{selected.textBody}</p>
                 )}
                 {selected.type === 'VIDEO' && selected.playbackUrl && (
-                  // eslint-disable-next-line jsx-a11y/media-has-caption -- captions come from the source asset, not generated here
                   <video controls src={selected.playbackUrl} className="w-full rounded-md bg-black" />
                 )}
                 {(selected.type === 'DOCUMENT' || selected.type === 'RESOURCE') && selected.playbackUrl && (
