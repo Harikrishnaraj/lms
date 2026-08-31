@@ -53,6 +53,7 @@ export interface ListCatalogParams {
   maxDurationMinutes?: number;
   page?: number;
   pageSize?: number;
+  [key: string]: string | number | boolean | undefined;
 }
 
 function toQueryString(params: Record<string, string | number | boolean | undefined>): string {
