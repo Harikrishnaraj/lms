@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# A new push to a PR cancels the previous run for that PR; master runs always
+# finish so every commit on the default branch has a real result.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Typecheck, lint & boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Must precede setup-node so its `cache: pnpm` can find the store.
+      # Version comes from the root package.json "packageManager" field.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # database/package.json has a `postinstall: prisma generate`, but a fully
+      # cached install can skip lifecycle scripts, and a stale/stub client is
+      # the single most expensive failure mode in this repo — it surfaces as
+      # ~125 unrelated-looking type errors across ~20 service files rather than
+      # as one clear message. Regenerating unconditionally costs seconds.
+      - name: Generate Prisma client
+        run: pnpm --filter @lms/database exec prisma generate
+
+      # @lms/api and @lms/web import @lms/database's built `dist/`, so it has
+      # to be compiled before anything downstream can be typechecked.
+      - name: Build workspace packages
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # Compiles the real AppModule and asserts every DI graph resolves.
+      # Needs no database, Redis, or Auth0 tenant — see apps/api/src/app.boot.spec.ts.
+      - name: NestJS boot smoke test
+        run: pnpm --filter @lms/api exec vitest run src/app.boot.spec.ts
