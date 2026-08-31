@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Notification, NotificationPreference, NotificationType, Prisma, PrismaClient } from '@lms/database';
 import { PRISMA_CLIENT } from '../database/database.constants';
-import { EMAIL_PORT, EmailPort } from './email/email.port';
+import { EMAIL_PORT, type EmailPort } from './email/email.port';
 import { ListNotificationsQueryDto } from './dto/list-notifications.dto';
 import { NotificationJob, NotificationQueue } from './notification-queue';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';

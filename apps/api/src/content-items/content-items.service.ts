@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { ContentItem, ContentItemStatus, PrismaClient } from '@lms/database';
 import { PRISMA_CLIENT } from '../database/database.constants';
-import { STORAGE_PORT, StoragePort, UploadTarget } from '../storage/storage.port';
+import { STORAGE_PORT, type StoragePort, type UploadTarget } from '../storage/storage.port';
 import { CreateContentItemDto } from './dto/create-content-item.dto';
 import { ReorderContentItemsDto } from './dto/reorder-content-items.dto';
 import { UpdateContentItemDto } from './dto/update-content-item.dto';

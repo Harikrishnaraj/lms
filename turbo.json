@@ -35,6 +35,15 @@
         "dist/**"
       ],
       "cache": false
+    },
+    "@lms/api#build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ],
+      "cache": false
     }
   }
 }

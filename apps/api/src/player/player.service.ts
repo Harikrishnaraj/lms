@@ -2,7 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { ContentType, Prisma, PrismaClient } from '@lms/database';
 import { PRISMA_CLIENT } from '../database/database.constants';
 import { EnrollmentCaller, EnrollmentsService } from '../enrollments/enrollments.service';
-import { STORAGE_PORT, StoragePort } from '../storage/storage.port';
+import { STORAGE_PORT, type StoragePort } from '../storage/storage.port';
 import { MarkContentProgressDto } from './dto/mark-content-progress.dto';
 import { CertificatesService } from '../certificates/certificates.service';
 

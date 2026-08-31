@@ -3,8 +3,8 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { AuthenticatedUser, decodeJwtPayload } from './authenticated-user';
-import { IDENTITY_PROVIDER, IdentityProviderPort } from './ports/identity-provider.port';
-import { SESSION_STORE, SessionStorePort } from './ports/session-store.port';
+import { IDENTITY_PROVIDER, type IdentityProviderPort } from './ports/identity-provider.port';
+import { SESSION_STORE, type SessionStorePort } from './ports/session-store.port';
 
 export interface AccessTokenResponse {
   accessToken: string;

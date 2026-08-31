@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { PrismaClient } from '@lms/database';
 import { PRISMA_CLIENT } from '../database/database.constants';
 import { AuditService } from '../audit/audit.service';
-import { AI_PORT, AiPort, CourseOutlineGeneration } from './ai.port';
+import { AI_PORT, type AiPort, type CourseOutlineGeneration } from './ai.port';
 import { GenerateOutlineDto, TagContentDto } from './dto/ai-request.dto';
 
 @Injectable()
