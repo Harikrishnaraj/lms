@@ -172,7 +172,7 @@ export class Auth0IdentityProvider implements IdentityProviderPort {
     };
   }
 
-  private async handleAuthError(response: Awaited<ReturnType<typeof fetch>>, unauthorizedMessage: string): Promise<never> {
+  private async handleAuthError(response: Response, unauthorizedMessage: string): Promise<never> {
     const body = (await response.json().catch(() => ({}))) as Auth0ErrorResponse;
     if (response.status === 401 || response.status === 403 || body.error === 'invalid_grant') {
       throw new UnauthorizedException(unauthorizedMessage);
@@ -211,7 +211,7 @@ export class Auth0IdentityProvider implements IdentityProviderPort {
     return body.access_token;
   }
 
-  private postJson(path: string, payload: Record<string, unknown>): ReturnType<typeof fetch> {
+  private postJson(path: string, payload: Record<string, unknown>): Promise<Response> {
     return fetch(`https://${this.domain}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
