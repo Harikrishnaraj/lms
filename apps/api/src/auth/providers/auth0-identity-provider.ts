@@ -175,6 +175,19 @@ export class Auth0IdentityProvider implements IdentityProviderPort {
   private async handleAuthError(response: Response, unauthorizedMessage: string): Promise<never> {
     const body = (await response.json().catch(() => ({}))) as Auth0ErrorResponse;
     if (response.status === 401 || response.status === 403 || body.error === 'invalid_grant') {
+      // The client-facing message stays deliberately generic here — it is the
+      // user-enumeration guard, and must read identically whether or not the
+      // account exists. That also makes a genuinely wrong password
+      // indistinguishable from a misconfigured tenant, so log the provider's
+      // own error code: without it, `invalid_grant` (wrong password),
+      // `unauthorized_client` (Password grant not enabled),
+      // `access_denied` (the AUTH0_AUDIENCE API does not exist) and
+      // `invalid_client` (wrong client secret) all surface as a bare 401.
+      // warn, not error: a wrong password is ordinary traffic, not a fault.
+      this.logger.warn(
+        `Auth0 rejected credentials: HTTP ${response.status} ${body.error ?? 'unknown_error'}` +
+          (body.error_description ? ` — ${body.error_description}` : ''),
+      );
       throw new UnauthorizedException(unauthorizedMessage);
     }
     this.logger.error(`Auth0 request failed: ${response.status} ${JSON.stringify(body)}`);
